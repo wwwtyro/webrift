@@ -1,5 +1,6 @@
 
 import time
+import json
 import multiprocessing as mp
 
 import tornado.httpserver
@@ -11,33 +12,43 @@ import pyrift
 
 clients = []
  
-class WSHandler(tornado.websocket.WebSocketHandler):
+class RiftHandler(tornado.websocket.WebSocketHandler):
     def open(self):
         clients.append(self)
-        self.t0 = time.time()
-        print "Socket opened.", len(clients), "sockets open."
-      
     def on_message(self, message):
         pass
- 
     def on_close(self):
         clients.remove(self)
-        print "Socket closed.", len(clients), "sockets open."
+    def update(self):
+        pass
 
+class QuaternionHandlerCSV(RiftHandler):
     def update(self):
         x, y, z, w = pyrift.get_orientation_quaternion()
-        response = "%f,%f,%f,%f" % (w,x,y,z)
-        self.write_message(response)
- 
+        data = "%f,%f,%f,%f" % (w,x,y,z)
+        self.write_message(data)
+
+class QuaternionHandlerJSON(RiftHandler):
+    def update(self):
+        x, y, z, w = pyrift.get_orientation_quaternion()
+        data = json.dumps(dict(w=w, x=x, y=y, z=z))
+        self.write_message(data)
+
+class EulerHandlerJSON(RiftHandler):
+    def update(self):
+        yaw, pitch, roll = pyrift.get_orientation()
+        data = json.dumps(dict(yaw = yaw, pitch = pitch, roll=roll))
+        self.write_message(data)
 
 def update():
     for client in clients:
         client.update()
  
 application = tornado.web.Application([
-    (r'/', WSHandler),
+    (r'/csv/quat', QuaternionHandlerCSV),
+    (r'/json/quat', QuaternionHandlerJSON),
+    (r'/json/euler', EulerHandlerJSON),
 ])
- 
 
 def main():
     pyrift.initialize()

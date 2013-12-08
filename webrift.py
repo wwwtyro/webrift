@@ -4,6 +4,12 @@ import gtk
 
 import server
 
+labelText = """ Webrift server running at http://localhost:8808.
+
+To use with http://oculusstreetview.eu.pn/, go to settings and 
+change the Web Socket field to "ws://localhost:8808/csv/quat".
+
+Close this window to exit the server."""
 
 class WebRiftApp:
 
@@ -15,12 +21,12 @@ class WebRiftApp:
 
     def __init__(self):
         self.window = gtk.Window(gtk.WINDOW_TOPLEVEL)
-        self.window.set_title(title="WebRift Server")
+        self.window.set_title(title="Webrift Server")
         self.window.connect("delete_event", self.delete_event)
         self.window.connect("destroy", self.destroy)
         self.window.set_border_width(10)
         self.window.show()
-        label = gtk.Label("WebRift server running at http://localhost:8808\nClose this window to exit the server.")
+        label = gtk.Label(labelText)
         label.show()
         self.window.add(label)
 
