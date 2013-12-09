@@ -17,11 +17,11 @@ var Webrift = function(url) {
 	}
 
 	self.onMessage = function(e) {
-		var msg = JSON.parse(e.data);
-		self.x = msg.x;
-		self.y = msg.y;
-		self.z = msg.z;
-		self.w = msg.w;
+		var msg = JSON.parse('[' + e.data + ']');
+		self.x = msg[1];
+		self.y = msg[2];
+		self.z = msg[3];
+		self.w = msg[0];
 	}
 
 	self.onOpen = function() {

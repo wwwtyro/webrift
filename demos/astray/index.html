@@ -20,7 +20,7 @@
                 mouseY         = undefined,
                 maze           = undefined, 
                 mazeMesh       = undefined,
-                mazeDimension  = 23,
+                mazeDimension  = 11,
                 planeMesh      = undefined,
                 ballMesh       = undefined,
                 ballRadius     = 0.25,
@@ -219,7 +219,7 @@
                         var mazeX = Math.floor(ballMesh.position.x + 0.5);
                         var mazeY = Math.floor(ballMesh.position.y + 0.5);
                         if (mazeX == mazeDimension && mazeY == mazeDimension - 2) { 
-                            mazeDimension += 10;
+                            mazeDimension += 2;
                             gameState = 'fade out';
                         }
                         break;
@@ -283,7 +283,7 @@
             $(document).ready(function() {
 
                 // Connect the webrift.
-                webrift = new Webrift("ws://localhost:8808/json/quat");
+                webrift = new Webrift("ws://localhost:1981/csv/quat");
 
                 // Prepare the instructions.
                 $('#instructions').center();
@@ -371,37 +371,22 @@
     
     <body>
     
-    <div id='instructions'>
-        How to play Astray:
-        <br><br>
-        Use the arrow keys to move the ball and find the exit to the maze.
-        <br><br>
-        Vim trainees: h, j, k, l
-    </div>
-    
-    <div id='help'>
-        Hold down the 'I' key for instructions.
-    </div>
+        <div id='instructions'>
+            How to play Astray:
+            <br><br>
+            Use the arrow keys to move the ball and find the exit to the maze.
+            <br><br>
+            Vim trainees: h, j, k, l
+        </div>
+        
+        <div id='help'>
+            Hold down the 'I' key for instructions.
+        </div>
 
-    <div id='level'>
-        Level 1
-    </div>
+        <div id='level'>
+            Level 1
+        </div>
 
-<!--Fork me on github-->
-    <a href="https://github.com/wwwtyro/Astray"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_red_aa0000.png" alt="Fork me on GitHub"></a>
-    
-<!--Google Analytics-->
-    <script type="text/javascript">
-      var _gaq = _gaq || [];
-      _gaq.push(['_setAccount', 'UA-33344670-1']);
-      _gaq.push(['_trackPageview']);
-      (function() {
-        var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
-        ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
-        var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
-      })();
-    </script>    
-    
     </body>
 
 </html>
