@@ -53,7 +53,7 @@ application = tornado.web.Application([
 def main():
     pyrift.initialize()
     http_server = tornado.httpserver.HTTPServer(application)
-    http_server.listen(8808)
+    http_server.listen(1981)
     callback = tornado.ioloop.PeriodicCallback(update, 1000/60.0)
     callback.start()
     tornado.ioloop.IOLoop.instance().start()
