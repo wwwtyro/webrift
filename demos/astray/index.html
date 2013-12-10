@@ -117,7 +117,7 @@
                 scene.add(ballMesh);
 
                 // Add the camera.
-                var aspect = window.innerWidth/window.innerHeight;
+                var aspect = 1280/800;
                 camera = new THREE.PerspectiveCamera(60, aspect, 1, 1000);
                 camera.position.set(1, 1, 5);
                 scene.add(camera);
@@ -203,6 +203,7 @@
                         
                     case 'fade in':
                         light.intensity += 0.1 * (1.0 - light.intensity);
+                        camera.quaternion.set(webrift.x, webrift.y, webrift.z, webrift.w);
                         OReffect.render(scene, camera);
                         if (Math.abs(light.intensity - 1.0) < 0.05) {
                             light.intensity = 1.0;
@@ -214,7 +215,6 @@
                         updatePhysicsWorld();
                         updateRenderWorld();
                         OReffect.render(scene, camera);
-
                         // Check for victory.
                         var mazeX = Math.floor(ballMesh.position.x + 0.5);
                         var mazeY = Math.floor(ballMesh.position.y + 0.5);
@@ -228,6 +228,7 @@
                         updatePhysicsWorld();
                         updateRenderWorld();
                         light.intensity += 0.1 * (0.0 - light.intensity);
+                        camera.quaternion.set(webrift.x, webrift.y, webrift.z, webrift.w);
                         OReffect.render(scene, camera);
                         if (Math.abs(light.intensity - 0.0) < 0.1) {
                             light.intensity = 0.0;
@@ -242,13 +243,6 @@
 
             }
 
-
-            function onResize() {
-                renderer.setSize(window.innerWidth, window.innerHeight);
-                camera.aspect = window.innerWidth/window.innerHeight;
-                camera.updateProjectionMatrix();
-            }
-            
 
             function onMoveKey(axis) {
                 keyAxis = axis.slice(0);
@@ -292,14 +286,14 @@
                                          function(){$('#instructions').hide()});
     
                 // Create the renderer.
-                renderer = new THREE.WebGLRenderer();
-                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer = new THREE.WebGLRenderer({canvas: document.getElementById("renderCanvas")});
+                renderer.setSize(1280,800);
                 document.body.appendChild(renderer.domElement);
 
                 // Create the OR effect.
                 var HMD = {
-                    hResolution: window.innerWidth,
-                    vResolution: window.innerHeight,
+                    hResolution: 1280,
+                    vResolution: 800,
                     hScreenSize: 0.14976,
                     vScreenSize: 0.0936,
                     interpupillaryDistance: 0.064,
@@ -309,12 +303,11 @@
                     chromaAbParameter: [ 0.996, -0.004, 1.014, 0.0]
                 };
                 OReffect = new THREE.OculusRiftEffect(renderer, {HMD: HMD});
-                OReffect.setSize(window.innerWidth, window.innerHeight);
+                OReffect.setSize(1280,800);
 
                 // Bind keyboard and resize events.
                 KeyboardJS.bind.axis('left', 'right', 'down', 'up', onMoveKey);
                 KeyboardJS.bind.axis('h', 'l', 'j', 'k', onMoveKey);
-                $(window).resize(onResize);
                 
 
                 // Set the initial game state.
@@ -386,6 +379,8 @@
         <div id='level'>
             Level 1
         </div>
+
+        <canvas id="renderCanvas" style="width:100%; height:100%; position:absolute"></canvas>
 
     </body>
 
