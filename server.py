@@ -45,6 +45,7 @@ def update():
         client.update()
  
 application = tornado.web.Application([
+    (r'/', QuaternionHandlerCSV),
     (r'/csv/quat', QuaternionHandlerCSV),
     (r'/json/quat', QuaternionHandlerJSON),
     (r'/json/euler', EulerHandlerJSON),
@@ -54,7 +55,7 @@ def main():
     pyrift.initialize()
     http_server = tornado.httpserver.HTTPServer(application)
     http_server.listen(1981)
-    callback = tornado.ioloop.PeriodicCallback(update, 1000/60.0)
+    callback = tornado.ioloop.PeriodicCallback(update, 1000/120.0)
     callback.start()
     tornado.ioloop.IOLoop.instance().start()
 
