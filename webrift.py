@@ -4,10 +4,7 @@ import gtk
 
 import server
 
-labelText = """ Webrift server running at http://localhost:1981.
-
-To use with http://oculusstreetview.eu.pn/, go to settings and 
-change the Web Socket field to "ws://localhost:1981/csv/quat".
+labelText = """ Webrift server running at ws://localhost:1981.
 
 Close this window to exit the server."""
 
