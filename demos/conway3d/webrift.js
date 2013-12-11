@@ -26,6 +26,10 @@ var Webrift = function(url) {
 
 	self.onOpen = function() {
 		console.log("Webrift socket connected.");
+		var help = document.getElementById("webrift-help");
+		if (help != null) {
+			help.innerHTML = "<a style='color:#0088ff' href='http://wwwtyro.github.io/webrift'>Find more webrift demos.</a>";
+		}
 	}
 
 	self.onClose = function() {

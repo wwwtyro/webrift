@@ -33,6 +33,12 @@ var Trackball = function(eventElement, targetMesh) {
         self.mesh.rotation.setFromRotationMatrix(tempMat2);
     }
 
+    self.rotate3 = function(dx, dy, dz) {
+        self.mesh.rotateX(dx);
+        self.mesh.rotateY(dy);
+        self.mesh.rotateZ(dz);
+    }
+
     self.onMouseDown = function(e) {
         if (e.button == 0) {
             self.mouseDown = true;

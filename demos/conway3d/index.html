@@ -31,6 +31,7 @@
                 zoom = {current: 1.0, target: 1.5},
                 particleSystem,
                 webrift,
+                dummy,
                 OReffect;
 
 
@@ -39,18 +40,11 @@
                 controls = new Controls();
                 controls.writeHash();
                 gui = new dat.GUI();
+                gui.close();
                 gui.addColor(controls, 'foreground').name('Foreground').onChange(function(value) {
                     particleSystem.material.color.r = value[0]/255;
                     particleSystem.material.color.g = value[1]/255;
                     particleSystem.material.color.b = value[2]/255;
-                    controls.writeHash();
-                });
-                gui.addColor(controls, 'background').name('Background').onChange(function(value) {
-                    var color = new THREE.Color();
-                    color.r = value[0]/255;
-                    color.g = value[1]/255;
-                    color.b = value[2]/255;
-                    renderer.setClearColor(color);
                     controls.writeHash();
                 });
                 gui.add(controls, 'resolution', 0, 1).name("Resolution").onFinishChange(function(value) {
@@ -97,11 +91,6 @@
                 canvas.onselectstart = function () { return false; }
                 renderer = new THREE.WebGLRenderer({antialias: false, canvas: canvas});
                 renderer.setSize(window.innerWidth * controls.resolution, window.innerHeight * controls.resolution);
-                var color = new THREE.Color();
-                color.r = controls.background[0]/255;
-                color.g = controls.background[1]/255;
-                color.b = controls.background[2]/255;
-                renderer.setClearColor(color);
 
                 var HMD = {
                     hResolution: 1280,
@@ -138,12 +127,11 @@
                     console.warn("Failed to parse json in window.location.hash");
                 }
                 this.foreground = hash.foreground || [0, 128, 255];
-                this.background = hash.background || [99,99,255];
                 this.resolution = hash.resolution || 1.0;
                 this.opacity = hash.opacity || 1.0;
                 this.size = hash.size || 0.01;
-                this.speed = hash.speed || 32;
-                this.simsize = hash.simsize || 64;
+                this.speed = hash.speed || 1;
+                this.simsize = hash.simsize || 32;
                 this.lonely = hash.lonely || 4;
                 this.crowded = hash.crowded || 14;
                 this.reset = initializeField;
@@ -151,7 +139,6 @@
 
                 this.writeHash = function() {
                     var hash = { foreground: this.foreground, 
-                                 background: this.background,
                                  resolution: this.resolution, 
                                  opacity: this.opacity,
                                  size: this.size,
@@ -166,6 +153,13 @@
 
 
             function initializeField() {
+
+                scene = new THREE.Scene();
+
+                dummy = new THREE.Object3D();
+                dummy.position.set(0,1.5,0);
+                scene.add(dummy);
+
                 particles = new THREE.BufferGeometry();
                 particles.dynamic = true;
                 particles.attributes = {
@@ -187,7 +181,8 @@
                 particleSystem.material.color.g = controls.foreground[1]/255;
                 particleSystem.material.color.b = controls.foreground[2]/255;
                 particleSystem.sortParticles = false;
-                particleSystem.position.set(0, 1.5, 0);
+
+                dummy.add(particleSystem);
 
                 if (worker != undefined) {
                     worker.terminate();
@@ -200,23 +195,21 @@
                 worker.postMessage({cmd: 'next'});
                 updateQueue = [];
 
-                scene = new THREE.Scene();
-                scene.add(particleSystem);
 
                 var geometry = new THREE.CubeGeometry(8, 8 ,8);
                 geometry.computeTangents();
                 var texture = new THREE.ImageUtils.loadTexture( 'grid.png' );
                 var normal = new THREE.ImageUtils.loadTexture( 'normalmap.png' );
-                var mat = new THREE.MeshPhongMaterial({color: 0xffff00, side: THREE.DoubleSide, map: texture, normalMap: normal, shininess: 100, metal: false, specular: 0x555555});
+                var mat = new THREE.MeshPhongMaterial({color: 0x00ff00, side: THREE.DoubleSide, map: texture, normalMap: normal, shininess: 50, metal: false, specular: 0x555555});
                 var mesh = new THREE.Mesh(geometry, mat);
                 mesh.position.set(0, 4, 0);
                 scene.add(mesh);
 
                 var light = new THREE.PointLight(0x0088ff);
-                light.position.set(0,1.5,0);
-                scene.add(light);
+                light.position.set(0.125,0,0);
+                dummy.add(light);
 
-                trackball = new Trackball(canvas, particleSystem);
+                trackball = new Trackball(canvas, dummy);
             }
 
 
@@ -232,7 +225,8 @@
                 requestAnimationFrame(animate);
                 updateField();
                 if (!trackball.mouseDown) {
-                    trackball.rotate(0.0025, 0.0001);
+                    dummy.rotation.x += 0.001;
+                    dummy.rotation.y += 0.002;
                 }
                 zoom.current += 0.25 * (zoom.target - zoom.current);
                 camera.position.set(0,1.62,zoom.current);
@@ -282,6 +276,8 @@
                 } else { 
                     zoom.target *= 0.9; 
                 }
+                zoom.target = Math.min(zoom.target, 3.110);
+                zoom.target = Math.max(zoom.target, 0.783);
             }
 
 
@@ -300,12 +296,27 @@
                 cursor: pointer;
             }
 
-            #generation {
+            #help {
+                text-align: right;
                 color: white;
-                font-size: 32px;
+                font-size: 12px;
                 position: fixed;
+                font-family: sans-serif;
+                bottom: 8px;
+                right: 8px;
+            }
+
+            #webrift-help {
+                font-size: 16px;
+                position: fixed;
+                font-family: sans-serif;
                 bottom: 8px;
                 left: 8px;
+                color: red;
+            }
+
+            #webrift-help a:link {
+                color: orange;
             }
 
         </style>
@@ -315,7 +326,13 @@
     <body>
 
         <canvas style="width:100%;height:100%;position:fixed;top:0;left:0" id='conway'></canvas>
-        <div id="generation"></div>
+        <div id="webrift-help">Install <a href="http://wwwtyro.github.io/webrift">webrift</a> to use your oculus rift.</div>
+        <div id="help">
+            Controls in upper right.<br>
+            Left click and drag to rotate.<br>
+            Scroll wheel to zoom in and out.<br>
+        </div>
+
     </body>
 
 </html>
