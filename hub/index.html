@@ -1,0 +1,165 @@
+<html>
+
+
+    <head>
+        <script src="webrift.js"></script>
+        <script src="three.min.js"></script>
+        <script src="OculusRiftEffect.js"></script>
+        <script src="demos.js"></script>
+
+        <style>
+            body {
+                margin: 0px;
+                padding: 0px;
+            }
+            #renderCanvas {
+                width: 100%;
+                height: 100%;
+            }
+            #webrift-download {
+                position: fixed;
+                left: 4px;
+                bottom: 4px;
+            }
+            a {
+                color: orange;
+                text-decoration: none;
+                font-family: sans-serif;
+            }
+        </style>
+
+    </head>
+
+
+    <body>
+        <canvas id="renderCanvas"></canvas>
+        <div id="webrift-download">
+            <a href="http://wwwtyro.github.io/webrift">Click here to get the webrift app.</a>
+        </div>
+    </body>
+
+
+    <script>
+
+        var LEFT=37, RIGHT=39, UP=38, ESC=27;
+
+        var camera, scene, renderer, OReffect, webrift, dummy, index=0, hub;
+
+        var officeSize = 4096; // The size of the blocks that make up the office.
+        var officeSpace = 16;   // The space between the blocks.
+        var officeTextureRepeat = officeSize/4;
+
+        var screenWidth = 3.2;
+        var screenHeight = 2;
+        var screenSpacing = 1;
+
+
+        function init() {
+
+            webrift = new Webrift("ws://localhost:1981");
+
+            camera = new THREE.PerspectiveCamera(75, 1280/800, 0.1, 1000.0);
+            camera.position.set(0, 1.5, 0.0);
+
+            scene = new THREE.Scene();
+            scene.fog = new THREE.Fog(0xffffff, 4, 32)
+
+            dummy = new THREE.Object3D();
+            dummy.position.set(0,1.5,-3);
+            scene.add(dummy);
+
+            for (var i = 0; i < demos.length; i++) {
+                var texture = new THREE.ImageUtils.loadTexture('screenshots/'+demos[i]['screenshot']);
+                var material = new THREE.MeshBasicMaterial({map: texture});
+                var geometry = new THREE.PlaneGeometry(screenWidth, screenHeight);
+                var mesh = new THREE.Mesh(geometry, material);
+                mesh.position.x = i * (screenWidth + screenSpacing);
+                dummy.add(mesh);
+            }
+
+            var texture = new THREE.ImageUtils.loadTexture('hub.png');
+            var material = new THREE.MeshBasicMaterial ({map: texture});
+            var geometry = new THREE.PlaneGeometry(1.061, 0.753);
+            hub = new THREE.Mesh(geometry, material);
+            hub.position.set(0, 1.5, -0.5);
+            scene.add(hub);
+
+            var texture = new THREE.ImageUtils.loadTexture('grid.png');
+            texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+            texture.repeat.set(officeTextureRepeat, officeTextureRepeat);
+            var material = new THREE.MeshPhongMaterial ({
+                map: texture,
+            });
+
+            var geometry = new THREE.CubeGeometry(officeSize, officeSize, officeSize);
+            geometry.computeTangents();
+
+            var mesh = new THREE.Mesh(geometry, material);
+            mesh.position.set(0, -officeSize/2, 0);
+            scene.add(mesh);
+
+            // mesh = new THREE.Mesh(geometry, material);
+            // mesh.position.set(0, officeSize/2 + officeSpace, 0);
+            // scene.add(mesh);
+
+            light = new THREE.DirectionalLight(0xffffff, 1.0);
+            light.position.set(0, 1, 0);
+            scene.add(light)
+
+            var canvas = document.getElementById("renderCanvas");
+            renderer = new THREE.WebGLRenderer({canvas: canvas});
+            renderer.setSize(1280, 800);
+            renderer.setClearColor(0xffffff);
+
+            var HMD = {
+                hResolution: 1280,
+                vResolution: 800,
+                hScreenSize: 0.14976,
+                vScreenSize: 0.0936,
+                interpupillaryDistance: 0.064,
+                lensSeparationDistance: 0.064,
+                eyeToScreenDistance: 0.041,
+                distortionK : [1.0, 0.22, 0.24, 0.0],
+                chromaAbParameter: [ 0.996, -0.004, 1.014, 0.0]
+            };
+            OReffect = new THREE.OculusRiftEffect(renderer, {HMD: HMD, worldFactor: 1.0});
+            OReffect.setSize(1280, 800);
+
+            window.addEventListener('keydown', keyDown, false);
+
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            var targetX = -index*(screenWidth+screenSpacing);
+            dummy.position.x += 0.1*(targetX - dummy.position.x)
+            camera.quaternion.set(webrift.x, webrift.y, webrift.z, webrift.w);
+            OReffect.render(scene, camera);
+        }
+
+        function keyDown(e) {
+            console.log(e.which);
+            if (e.which == LEFT) {
+                index--;
+            }
+            if (e.which == RIGHT) {
+                index++;
+            }
+            index = Math.min(index, demos.length - 1);
+            index = Math.max(index, 0);
+            if (e.which == UP) {
+                window.location = demos[index]['url'];
+            }
+            if (e.which == ESC) {
+                hub.visible = !hub.visible;
+            }
+        }
+
+
+        init();
+        animate();
+
+
+    </script>
+
+</html>
