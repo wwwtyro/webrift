@@ -45,8 +45,7 @@
 
         var camera, scene, renderer, OReffect, webrift, dummy, index=0, hub;
 
-        var officeSize = 4096; // The size of the blocks that make up the office.
-        var officeSpace = 16;   // The space between the blocks.
+        var officeSize = 4096;
         var officeTextureRepeat = officeSize/4;
 
         var screenWidth = 3.2;
@@ -87,7 +86,7 @@
             var texture = new THREE.ImageUtils.loadTexture('grid.png');
             texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
             texture.repeat.set(officeTextureRepeat, officeTextureRepeat);
-            var material = new THREE.MeshPhongMaterial ({
+            var material = new THREE.MeshBasicMaterial ({
                 map: texture,
             });
 
@@ -97,14 +96,6 @@
             var mesh = new THREE.Mesh(geometry, material);
             mesh.position.set(0, -officeSize/2, 0);
             scene.add(mesh);
-
-            // mesh = new THREE.Mesh(geometry, material);
-            // mesh.position.set(0, officeSize/2 + officeSpace, 0);
-            // scene.add(mesh);
-
-            light = new THREE.DirectionalLight(0xffffff, 1.0);
-            light.position.set(0, 1, 0);
-            scene.add(light)
 
             var canvas = document.getElementById("renderCanvas");
             renderer = new THREE.WebGLRenderer({canvas: canvas});
