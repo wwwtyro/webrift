@@ -1,0 +1,474 @@
+<html>
+
+    <head>
+        <script src="keyboard.js"></script>
+        <script src="underscore.min.js"></script>
+        <script src="webrift.js"></script>
+        <script src="three.min.js"></script>
+        <script src="howler.min.js"></script>
+        <script src="OculusRiftEffect.js"></script>
+        <style>
+            body {
+                margin: 0px;
+            }
+            #renderCanvas {
+                width: 100%;
+                height: 100%;
+            }
+            a {
+                color: white;
+                text-decoration: none;
+            }
+            #webriftLink {
+                position: fixed;
+                left: 8px;
+                bottom: 8px;
+                font-family: sans;
+            }
+            #hubLink {
+                position: fixed;
+                right: 8px;
+                bottom: 8px;
+                font-family: sans;
+            }
+        </style>
+    </head>
+
+    <body>
+        <canvas id="renderCanvas"></canvas>
+        <a id="webriftLink" href="http://wwwtyro.github.io/webrift">click here to install webrift</a>
+        <a id="hubLink" href="http://wwwtyro.github.io/webrift/hub">click here to see more webrift demos</a>
+    </body>
+
+    <script>
+
+        "use strict";
+
+        var camera, scene, renderer,
+            earth, space, reticle,
+            asteroidGeometry, asteroidMaterial, asteroids=[],
+            missileGeometry, missileMaterial, missiles=[], explosions=[],
+            reloaded=true, t0=time(), textCanvas, textPlane, score=0, 
+            paused=true, instructions, displayedScore=0, pauseTimeStart=time(),
+            pauseTimeTotal=0, gameFrames=0, webriftIndicator, shooting=false,
+            targetLine, OReffect, webrift, laserSound, boomSound, music,
+            rockGeometry, rockMaterial, rocks=[];
+
+        init();
+        animate();
+
+        function init() {
+
+            webrift = new Webrift("ws://localhost:1981", onWebriftOpen);
+
+            camera = new THREE.PerspectiveCamera(75, 1280/800, 0.1, 1000.0);
+            camera.position.set(0, 0, 4.0);
+
+            scene = new THREE.Scene();
+
+            textCanvas = document.createElement('canvas');
+            textCanvas.context = textCanvas.getContext('2d');
+            textCanvas.width = 512;
+            textCanvas.height = 512;
+            var texture = new THREE.Texture(textCanvas);
+            var geometry = new THREE.PlaneGeometry(100, 100);
+            var material = new THREE.MeshBasicMaterial({map: texture, transparent: true});
+            textPlane = new THREE.Mesh(geometry, material);
+            textPlane.position.set(0, 0, -100);
+            scene.add(textPlane);
+            clearText();
+
+            var canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512;
+            var context = canvas.getContext('2d');
+            context.textAlign = "center";
+            context.fillStyle="rgba(255,255,255,1)";
+            context.clearRect(0,0,512,512);
+            context.fillStyle="#fff";
+            context.font = "bold 24px sans-serif";
+            context.fillText("Welcome to Meteor Command!", 256, 32 + 128);
+            context.fillText("Earth + Meteor = Bad.", 256, 32*2 + 128);
+            context.fillText("Earth + Explosion = Bad.", 256, 32*3 + 128);
+            context.fillText("Aim with your face.", 256, 32*4 + 128);
+            context.fillText("Shoot with your spacebar.", 256, 32*5 + 128);
+            context.fillText("Make browser fullscreen.", 256, 32*6 + 128);
+            context.fillText("Press escape to begin.", 256, 32*7 + 128);
+            var texture = new THREE.Texture(canvas);
+            var geometry = new THREE.PlaneGeometry(1, 1);
+            var material = new THREE.MeshBasicMaterial({map: texture, transparent: true});
+            instructions = new THREE.Mesh(geometry, material);
+            instructions.material.map.needsUpdate = true;
+            instructions.position.set(0, 0, 3.25);
+            instructions.visible = false;
+            scene.add(instructions);
+
+            var canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512;
+            var context = canvas.getContext('2d');
+            context.textAlign = "center";
+            context.fillStyle="rgba(255,255,255,1)";
+            context.clearRect(0,0,512,512);
+            context.fillStyle="#fff";
+            context.font = "bold 24px sans-serif";
+            context.fillText("Connecting to local webrift server...", 256, 32 + 128);
+            context.fillText("If you have not installed webrift,", 256, 32*2 + 128);
+            context.fillText("look in the bottom left of your", 256, 32*3 + 128);
+            context.fillText("screen for a link to it.", 256, 32*4 + 128);
+            var texture = new THREE.Texture(canvas);
+            var geometry = new THREE.PlaneGeometry(1, 1);
+            var material = new THREE.MeshBasicMaterial({map: texture, transparent: true});
+            webriftIndicator = new THREE.Mesh(geometry, material);
+            webriftIndicator.material.map.needsUpdate = true;
+            webriftIndicator.position.set(0, 0, 3.25);
+            scene.add(webriftIndicator);
+
+            var geometry = new THREE.SphereGeometry(0.25, 32, 16)
+            var texture = new THREE.ImageUtils.loadTexture( 'earth.png' );
+            var material = new THREE.MeshPhongMaterial({map:texture})
+            earth = new THREE.Mesh(geometry, material);
+            earth.position.set(0, 0, 0);
+            scene.add(earth);
+
+            var material = new THREE.LineBasicMaterial ({
+                color:0x00ff88, 
+            });
+            var geometry = new THREE.Geometry();
+            geometry.vertices.push(new THREE.Vector3(0,-1,0));
+            geometry.vertices.push(new THREE.Vector3(0,1,0));
+            geometry.vertices.push(new THREE.Vector3(0,0,0));
+            geometry.vertices.push(new THREE.Vector3(-1,0,0));
+            geometry.vertices.push(new THREE.Vector3(1,0,0));
+            reticle = new THREE.Line(geometry, material);
+            reticle.position.set(0, 0, 0);
+            reticle.scale.set(0.1,0.1,0.1);
+            scene.add(reticle);
+
+            var material = new THREE.LineBasicMaterial ({
+                color: 0xffff00,
+            });
+            var geometry = new THREE.Geometry();
+            geometry.vertices.push(new THREE.Vector3(0,0,0));
+            geometry.vertices.push(new THREE.Vector3(0,0,0));
+            targetLine = new THREE.Line(geometry, material);
+            scene.add(targetLine);
+
+            var geometry = new THREE.SphereGeometry(450.0, 32, 16)
+            var texture = new THREE.ImageUtils.loadTexture( 'space.png' );
+            var material = new THREE.MeshBasicMaterial({map:texture, side:THREE.DoubleSide})
+            space = new THREE.Mesh(geometry, material);
+            space.position.set(0, 0, 0);
+            scene.add(space);
+
+            var texture = new THREE.ImageUtils.loadTexture( 'rock.png' );
+            asteroidGeometry = new THREE.SphereGeometry(0.125, 4, 5);
+            for (var i = 0; i < asteroidGeometry.vertices.length; i++) {
+                asteroidGeometry.vertices[i].multiplyScalar(Math.random()*0.25+0.75)
+            }
+            asteroidMaterial = new THREE.MeshPhongMaterial({map:texture, color:0xffaaaa});
+
+            rockGeometry = new THREE.SphereGeometry(0.125/3, 3, 3);
+            for (var i = 0; i < rockGeometry.vertices.length; i++) {
+                rockGeometry.vertices[i].multiplyScalar(Math.random()*0.5+0.5)
+            }
+            rockMaterial = new THREE.MeshPhongMaterial({map:texture});
+
+            missileGeometry = new THREE.SphereGeometry(1,32,16);
+            missileMaterial = new THREE.MeshBasicMaterial ({
+                color:0xff0000, 
+                transparent: true, 
+                opacity: 1.0, 
+            });
+
+            var light = new THREE.PointLight(0xffffff, 1.0);
+            light.position.set(10, 10, 10);
+            scene.add(light)
+
+            nextWave();
+
+            var canvas = document.getElementById("renderCanvas");
+            renderer = new THREE.WebGLRenderer({canvas: canvas, antialias: true});
+            renderer.setSize(1280, 800);
+            renderer.setClearColor(0x000000);
+
+            var HMD = {
+                hResolution: 1280,
+                vResolution: 800,
+                hScreenSize: 0.14976,
+                vScreenSize: 0.0936,
+                interpupillaryDistance: 0.064,
+                lensSeparationDistance: 0.064,
+                eyeToScreenDistance: 0.041,
+                distortionK : [1.0, 0.22, 0.24, 0.0],
+                chromaAbParameter: [ 0.996, -0.004, 1.014, 0.0]
+            };
+            OReffect = new THREE.OculusRiftEffect(renderer, {HMD: HMD, worldFactor: 1.0});
+            OReffect.setSize(1280, 800);
+
+            KeyboardJS.on("space", onSpaceDown, onSpaceUp);
+            KeyboardJS.on("escape", onEscape);
+
+            laserSound = new Howl ({
+                urls: ["laser.wav"]
+            });
+            boomSound = new Howl ({
+                urls: ["boom.wav"]
+            });
+            music = new Howl ({
+                urls: ["DST-BaySide.mp3"],
+                autoplay: true,
+                loop: true,
+                volume: 0.25
+            });
+
+
+        }
+
+
+        function onWebriftOpen() {
+            instructions.visible = true;
+            webriftIndicator.visible = false;
+        }
+
+        function clearText() {
+            textCanvas.context = textCanvas.getContext('2d');
+            textCanvas.context.fillStyle="rgba(0,0,0,0)";
+            textCanvas.context.clearRect(0,0,512,512);
+            textPlane.material.map.needsUpdate = true;
+        }
+
+        function writeText(text, x, y, color) {
+            textCanvas.context.fillStyle = color;
+            textCanvas.context.font = "bold 32px sans-serif";
+            textCanvas.context.fillText(text, x, y);
+            textPlane.material.map.needsUpdate = true;
+        }
+
+        function onEscape() {
+            if (webriftIndicator.visible) {
+                return;
+            }
+            toggleInstructions();
+        }
+
+        function toggleInstructions() {
+            instructions.visible = !instructions.visible;
+            paused = !paused;
+            if (paused) {
+                pauseTimeStart = time();
+            }
+            else {
+                pauseTimeTotal += time() - pauseTimeStart;
+            }
+        }
+
+        function getRiftQuat() {
+            return new THREE.Quaternion(webrift.x, webrift.y, webrift.z, webrift.w);
+        }
+
+        function getReticlePosition() {
+            var forward = new THREE.Vector3(0,0,-1).applyQuaternion(getRiftQuat()).normalize();
+            var dz = -camera.position.z/forward.z;
+            return new THREE.Vector3(dz * forward.x, dz * forward.y, 0.0);
+        }
+
+        function addMissile() {
+            var missile = new THREE.Mesh(missileGeometry, missileMaterial);
+            missile.target = getReticlePosition();
+            missile.gamescale = Math.pow(0.5,5);
+            missile.scale.set(missile.gamescale, missile.gamescale, missile.gamescale);
+            missiles.push(missile);
+            scene.add(missile);
+            laserSound.play();
+        }
+
+        function addRock(position) {
+            var rock = new THREE.Mesh(rockGeometry, rockMaterial);
+            rock.position = position.clone();
+            rock.velocity = new THREE.Vector3(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5).multiplyScalar(0.02);
+            rock.age = 0;
+            rock.rotationAxis = randVec3().normalize();
+            rock.rotationSpeed = Math.random() * 0.25;
+            rocks.push(rock);
+            scene.add(rock);
+        }
+
+        function randVec3() {
+            return new THREE.Vector3(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5);
+        }
+
+        function addRockSplosion(position) {
+            for (var i = 0; i < 8; i++) {
+                addRock(position);
+            }
+            var faceRock = rocks[rocks.length-1];
+            faceRock.velocity = camera.position.clone().add(randVec3().normalize().multiplyScalar(0.5)).sub(faceRock.position).normalize().multiplyScalar(0.04);
+        }
+
+        function updateRocks() {
+            _.each(rocks, function(r) {
+                r.position.add(r.velocity);
+                r.rotateOnAxis(r.rotationAxis, r.rotationSpeed);
+                r.age++;
+            });
+            var deadRocks = _.filter(rocks, function(r) {
+                return r.age > 1000;
+            });
+            _.each(deadRocks, function(r) {
+                scene.remove(r);
+            });
+            rocks = _.difference(rocks, deadRocks);
+        }
+
+        function onSpaceDown() {
+            shooting = true;
+        }
+
+        function onSpaceUp() {
+            shooting = false;
+
+        }
+
+        function nextWave() {
+            var maxRoids = Math.min(64, Math.floor(gameFrames/1200) + 4);
+            while (maxRoids > asteroids.length) {
+                var asteroid = new THREE.Mesh(asteroidGeometry, asteroidMaterial);
+                var angle = Math.random() * Math.PI * 2;
+                var distance = Math.random()*10 + 10;
+                asteroid.position.set(Math.cos(angle) * distance, Math.sin(angle) * distance, 0.0);
+                asteroid.speed = 0.02 - Math.random() * 0.015;
+                asteroid.rotationAxis = randVec3().normalize();
+                asteroid.rotationSpeed = Math.random() * 0.1;
+                asteroids.push(asteroid);
+                scene.add(asteroid);
+            }
+        }
+
+        function time() {
+            return new Date().getTime()/1000.0;
+        }
+
+
+        function update() {
+            gameFrames++;
+            updateRocks();
+            if (shooting) {
+                if (time() - reloaded >= 0.1) {
+                    addMissile();
+                    reloaded = time();
+                }
+            }
+            nextWave();
+            _.each(missiles, function(missile) {
+                missile.position.add(missile.target.clone().sub(missile.position).multiplyScalar(0.1));
+            });
+            var newExplosions = _.filter(missiles, function(missile) {
+                return missile.position.clone().sub(missile.target).length() < 0.01;
+            });
+            missiles = _.reject(missiles, function(missile) {
+                return missile.position.clone().sub(missile.target).length() < 0.01;
+            });
+            _.each(newExplosions, function(e) {
+                e.position = e.target;
+                e.material = e.material.clone();
+                e.material.opacity = 0.25;
+            });
+            explosions = _.union(explosions, newExplosions);
+            _.each(explosions, function(explosion) {
+                explosion.gamescale += 0.01;
+                explosion.scale.set(explosion.gamescale,explosion.gamescale,explosion.gamescale);
+            });
+            if (_.some(explosions, function(e) {
+                return e.position.length() < e.gamescale + 0.25;
+            })) {
+                score--;
+            }
+            _.each(asteroids, function(a) {
+                a.position.add(a.position.clone().normalize().negate().multiplyScalar(a.speed));
+                a.rotateOnAxis(a.rotationAxis, a.rotationSpeed);
+            });
+            var deadAsteroids = _.filter(asteroids, function(a) {
+                return _.some(explosions, function(e) {
+                    return e.position.clone().sub(a.position).length() < e.gamescale + 0.125;
+                });
+            });
+            asteroids = _.difference(asteroids, deadAsteroids);
+            _.each(deadAsteroids, function(a) {
+                scene.remove(a);
+                score += 10;
+                boomSound.play();
+                addRockSplosion(a.position);
+            });
+            var meteors = _.filter(asteroids, function(a) {
+                return a.position.length() < 0.375;
+            });
+            _.each(meteors, function(m) {
+                scene.remove(m);
+                score -= 25;
+                boomSound.play();
+                addRockSplosion(m.position);
+            });
+            asteroids = _.reject(asteroids, function(a) {
+                return a.position.length() < 0.375;
+            });
+            if (asteroids.length == 0) {
+                nextWave();
+            }
+            var dangerDistance = 1e300;
+            var dangerRoid = null;
+            _.each(asteroids, function(a) {
+                var d = a.position.length()/a.speed;
+                if (d < dangerDistance) {
+                    dangerRoid = a;
+                    dangerDistance = d;
+                }
+            });
+            targetLine.geometry.vertices[1].add(dangerRoid.position.clone().multiplyScalar(0.9).sub(targetLine.geometry.vertices[1]).multiplyScalar(0.1));
+            targetLine.geometry.verticesNeedUpdate = true;
+            var deadExplosions = _.filter(explosions, function(explosion) {
+                return explosion.gamescale >= 0.5;
+            });
+            _.each(deadExplosions, function(explosion) {
+                scene.remove(explosion);
+            });
+            explosions = _.reject(explosions, function(explosion) {
+                return explosion.gamescale >= 0.5;
+            });
+            if (localStorage.getItem('high score') < score) {
+                localStorage.setItem('high score', score);
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            reticle.position = getReticlePosition();
+            camera.quaternion = getRiftQuat();
+            earth.rotateX(0.001);
+            earth.rotateY(0.001);
+            clearText();
+            if (displayedScore < score) {
+                displayedScore++;
+            }
+            else if (displayedScore > score) {
+                displayedScore--;
+            }
+            if (paused) {
+                camera.quaternion = getRiftQuat();
+                OReffect.render(scene, camera);
+                return;
+            }
+            if (localStorage.getItem('high score') == score) {
+                writeText("High Score! " + displayedScore, 0, 32, "#ff0");
+            }
+            else {
+                writeText("Score: " + displayedScore, 0, 32, "#880");
+            }
+            update();
+            OReffect.render(scene, camera);
+        }
+
+    </script>
+
+
+</html>
