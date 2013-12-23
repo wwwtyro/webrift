@@ -1,5 +1,10 @@
 var demos = [
 	{	
+		"name": "Meteor Command",
+		"url": "http://wwwtyro.github.io/webrift/demos/meteor-command",
+		"screenshot": "meteor-command.png"	
+	},
+	{	
 		"name": "Conway 3D",
 		"url": "http://wwwtyro.github.io/webrift/demos/conway3d",
 		"screenshot": "conway3d.png"	

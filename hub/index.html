@@ -118,6 +118,26 @@
 
             window.addEventListener('keydown', keyDown, false);
 
+            var params = getHashParams();
+            if (params.index != undefined) {
+                index = parseInt(params.index);
+                hub.visible = false;
+            }
+
+        }
+
+        function setHashParams() {
+            
+        }
+
+        function getHashParams() {
+            var params = {};
+            var hashes = window.location.hash.replace("#","").split("&");
+            for (var i = 0; i < hashes.length; i++) {
+                var split = hashes[i].split("=");
+                params[split[0]] = split[1];
+            }
+            return params;
         }
 
         function animate() {
@@ -138,6 +158,7 @@
             }
             index = Math.min(index, demos.length - 1);
             index = Math.max(index, 0);
+            window.location.hash = "#index=" + index;
             if (e.which == UP) {
                 window.location = demos[index]['url'];
             }
