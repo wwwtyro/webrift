@@ -1,0 +1,379 @@
+<html style="margin:0px; padding:0px">
+
+    <head>
+        <script src="webrift.js"></script>
+        <script src="three.min.js"></script>
+        <script src="cannon.min.js"></script>
+        <script src="keyboard.js"></script>
+        <script src="underscore.min.js"></script>
+        <script src="howler.min.js"></script>
+        <script src="fabric.min.js"></script>
+        <script src="OculusRiftEffect.js"></script>
+        <style>
+            body {
+                margin: 0px;
+            }
+            #renderCanvas {
+                width: 100%;
+                height: 100%;
+                cursor: none;
+            }
+            a {
+                color: white;
+                text-decoration: none;
+            }
+            #webriftLink {
+                position: fixed;
+                left: 8px;
+                bottom: 8px;
+                font-family: sans;
+            }
+            #hubLink {
+                position: fixed;
+                right: 8px;
+                bottom: 8px;
+                font-family: sans;
+            }
+        </style>
+    </head>
+
+    <body>
+        <canvas id="renderCanvas"></canvas>
+        <a id="webriftLink" href="http://wwwtyro.github.io/webrift">click here to install webrift</a>
+        <a id="hubLink" href="http://wwwtyro.github.io/webrift/hub">click here to see more webrift demos</a>
+    </body>
+
+    <script>
+
+        var camera, scene, renderer,
+            geometry, material, light, sphere, bigSphere,
+            mesh, texture, t0, mode="connecting",
+            OReffect, webrift, textBox, score = 0;
+
+        var cWorld, cSphere, cBigSphere;
+
+        var tink, bounce, music;
+
+        init();
+        animate();
+
+        function textPlane(params) {
+            params = params || {};
+            var resX = params.resX || 512;
+            var resY = params.resY || 512;
+            var width = params.width || 1;
+            var height = params.height || 1;
+            var canvas = document.createElement('canvas');
+            canvas.width = resX;
+            canvas.height = resY;
+            var fcanvas = new fabric.Canvas(canvas);
+
+            var texture = new THREE.Texture(canvas);
+            var geometry = new THREE.PlaneGeometry(8, 8);
+            var material = new THREE.MeshBasicMaterial({map: texture, transparent: true});
+            var mesh = new THREE.Mesh(geometry, material);
+
+            mesh.write = function(text, textParams) {
+                textParams = textParams || {};
+                textParams.color = textParams.color || "#0f8";
+                fcanvas.clear();
+                var ftext = new fabric.Text(text, textParams);
+                ftext.setColor(textParams.color);
+                ftext.left = resX/2 - ftext.width/2;
+                ftext.top = resY/2 - ftext.height/2;
+                fcanvas.add(ftext);     
+                mesh.material.map.needsUpdate = true;
+            }
+
+            return mesh;
+
+        }
+
+        function init() {
+
+            tink = new Howl ({
+                urls: ["tink.wav"],
+                volume: 0.5
+            });
+            
+            bounce = new Howl ({
+                urls: ["bounce.wav"]
+            });
+
+            music = new Howl ({
+                urls: ["DST-BaySide.mp3"],
+                autoplay: true,
+                loop: true,
+                volume: 0.25
+            });
+
+
+
+            cWorld = new CANNON.World();
+            cWorld.gravity.set(0,-9.82,0);
+            cWorld.broadphase = new CANNON.NaiveBroadphase();
+            cWorld.tolerance = 0.1;
+
+            var mat1 = new CANNON.Material();
+            var contactMat = new CANNON.ContactMaterial(mat1, mat1, 0.1, 0.9);
+            cWorld.addContactMaterial(contactMat);
+
+            // The light ball.
+            var sphereShape = new CANNON.Sphere(0.1);
+            cSphere = new CANNON.RigidBody(1,sphereShape, mat1);
+            cSphere.position.set(0,4,0);
+            cSphere.velocity.set(3,4,5);
+            cWorld.add(cSphere);
+            cSphere.addEventListener("collide", function(e) {
+                if (Math.abs(e.contact.penetration) > 0.0001) {
+                    tink.play();
+                }
+            });
+
+            // The big ball.
+            var s = new CANNON.Sphere(1.0);
+            cBigSphere = new CANNON.RigidBody(1,s, mat1);
+            cBigSphere.position.set(0,2,0);
+            cWorld.add(cBigSphere);
+            cBigSphere.addEventListener("collide", function(e) {
+                if (Math.abs(e.contact.penetration) > 0.001 ) {
+                    bounce.play();
+                }
+            });
+
+            // Create an enclosed region.
+            var s = new CANNON.Box(new CANNON.Vec3(4,4,4));
+            var b = new CANNON.RigidBody(0,s, mat1);
+            b.position.set(0,-4,0);
+            cWorld.add(b);
+            var s = new CANNON.Box(new CANNON.Vec3(4,4,4));
+            var b = new CANNON.RigidBody(0,s, mat1);
+            b.position.set(0,12,0);
+            cWorld.add(b);
+            var s = new CANNON.Box(new CANNON.Vec3(4,4,4));
+            var b = new CANNON.RigidBody(0,s, mat1);
+            b.position.set(-8,4,0);
+            cWorld.add(b);
+            var s = new CANNON.Box(new CANNON.Vec3(4,4,4));
+            var b = new CANNON.RigidBody(0,s, mat1);
+            b.position.set(8,4,0);
+            cWorld.add(b);
+            var s = new CANNON.Box(new CANNON.Vec3(4,4,4));
+            var b = new CANNON.RigidBody(0,s, mat1);
+            b.position.set(0,4,-8);
+            cWorld.add(b);
+            var s = new CANNON.Box(new CANNON.Vec3(4,4,4));
+            var b = new CANNON.RigidBody(0,s, mat1);
+            b.position.set(0,4,8);
+            cWorld.add(b);
+
+            webrift = new Webrift("ws://localhost:1981", onWebrift);
+
+            camera = new THREE.PerspectiveCamera(75, 1280/800, 0.3, 10000.0);
+            camera.position.set(0, 1.62, 3.9);
+
+            scene = new THREE.Scene();
+
+            textBox = textPlane();
+            textBox.position.set(0, 4, -3.99);
+            scene.add(textBox);
+
+            geometry = new THREE.CubeGeometry(8, 8 ,8);
+            geometry.computeTangents();
+            texture = new THREE.ImageUtils.loadTexture( 'grid.png' );
+            normal = new THREE.ImageUtils.loadTexture( 'normalmap.png' );
+            material = new THREE.MeshPhongMaterial({
+                color: 0xffff00, 
+                side: THREE.DoubleSide, 
+                map: texture, 
+                normalMap: normal, 
+                shininess: 100, 
+                metal: false, 
+                specular: 0xffffff
+            });
+            mesh = new THREE.Mesh(geometry, material);
+            mesh.position.set(0, 4, 0);
+            scene.add(mesh);
+
+            geometry = new THREE.SphereGeometry(0.1, 16, 32)
+            material = new THREE.MeshBasicMaterial({color: 0xffffff});
+            sphere = new THREE.Mesh(geometry, material);
+            scene.add(sphere);
+
+            geometry = new THREE.SphereGeometry(1, 32, 32)
+            material = new THREE.MeshPhongMaterial({
+                color: 0x0088ff, 
+                map: texture, 
+                shininess: 100, 
+                metal: false, 
+                specular: 0xffffff
+            });
+            bigSphere = new THREE.Mesh(geometry, material);
+            scene.add(bigSphere);
+
+            light = new THREE.PointLight(0xffffff, 1.0, 48.0);
+            light.position.set(0, 4, 0);
+            scene.add(light)
+
+            var canvas = document.getElementById("renderCanvas");
+            renderer = new THREE.WebGLRenderer({canvas: canvas});
+            renderer.setSize(1280, 800);
+            renderer.setClearColor(0xffffff);
+
+            var HMD = {
+                hResolution: 1280,
+                vResolution: 800,
+                hScreenSize: 0.14976,
+                vScreenSize: 0.0936,
+                interpupillaryDistance: 0.064,
+                lensSeparationDistance: 0.064,
+                eyeToScreenDistance: 0.041,
+                distortionK : [1.0, 0.22, 0.24, 0.0],
+                chromaAbParameter: [ 0.996, -0.004, 1.014, 0.0]
+            };
+            OReffect = new THREE.OculusRiftEffect(renderer, {HMD: HMD, worldFactor: 1.0});
+            OReffect.setSize(1280, 800);
+
+            document.body.appendChild(renderer.domElement);
+            KeyboardJS.on("space", null, spaceUp);
+            KeyboardJS.on("enter", enterDown);
+
+            setMode("connecting");
+
+        }
+
+        function onWebrift() {
+            setMode("instruction");
+        }
+
+        function setMode(newMode) {
+            mode = newMode;
+            if (mode == "connecting") {
+                light.intensity = 0.1;
+                sphere.visible = false;
+                bigSphere.visible = false;
+                var text = "Connecting to webrift server.\nIf you have not installed\nwebrift, look in the bottom left\nof your screen for a link to it."
+                textBox.write(text, {
+                    fontFamily: "sans",
+                    fontSize: "28",
+                    fontWeight: "bold",
+                    textAlign: "center"
+                });
+            }
+            else if (mode == "instruction") {
+                light.intensity = 0.1;
+                sphere.visible = false;
+                bigSphere.visible = false;
+                var text =  "Press space to grab the small\n";
+                    text += "ball.\n\n";
+                    text += "Release space to launch\n";
+                    text += "the small ball in the direction\n";
+                    text += "you are facing.\n\n";
+                    text += "Keep the big ball as high\n";
+                    text += "as you can for as long as\n";
+                    text += "you can to increase your score.\n\n";
+                    text += "Press enter to begin.";
+                textBox.write(text, {
+                    fontFamily: "sans",
+                    fontSize: "28",
+                    fontWeight: "bold",
+                    textAlign: "center"
+                });
+            }
+            else if (mode == "game") {
+                light.intensity = 1;
+                sphere.visible = true;
+                bigSphere.visible = true;
+                cSphere.position.set(3, 4, 0);
+                cSphere.velocity.set(-16, 0, 0);
+                cBigSphere.position.set(0,4,0);
+                t0 = time();
+                score = 0;
+            }
+            else if (mode == "score") {
+                light.intensity = 0.1;
+                sphere.visible = false;
+                bigSphere.visible = false;
+                var text =  "Score: " + Math.floor(score) + "\n\n";
+                    text += "High Score: " + Math.floor(getHighScore()) + "\n\n";
+                    text += "Press enter to continue.";
+                textBox.write(text, {
+                    fontFamily: "sans",
+                    fontSize: "28",
+                    fontWeight: "bold",
+                    textAlign: "center"
+                });
+            }
+        }
+
+        function getHighScore() {
+            return localStorage.getItem("high score");
+        }
+
+        function setHighScore(highScore) {
+            localStorage.setItem("high score", highScore);
+        }
+
+        function time() {
+            return new Date().getTime()/1000.0;
+        }
+
+        function enterDown() {
+            if (mode == "instruction") {
+                setMode("game");
+            }
+            else if(mode == "score") {
+                setMode("instruction");
+            }
+        }
+
+        function spaceUp() {
+            var quat = new THREE.Quaternion(webrift.x, webrift.y, webrift.z, webrift.w);
+            var front = new THREE.Vector3(0,0,-1).applyQuaternion(quat);
+            front.normalize().multiplyScalar(16.0);
+            cSphere.velocity.set(front.x, front.y, front.z);
+        }
+
+        function animate() {
+
+            requestAnimationFrame(animate);
+            if (mode == "game") {
+                if (_.contains(KeyboardJS.activeKeys(), "space")) {
+                    cSphere.position.set(camera.position.x, camera.position.y, camera.position.z);
+                    cSphere.velocity.set(0,0,0);
+                }
+                for (var i = 0; i < 10; i++) {
+                    cWorld.step(1.0/600.0);
+                }
+                score += cBigSphere.position.y - 1.0;
+                sphere.position.set(cSphere.position.x, cSphere.position.y, cSphere.position.z);
+                bigSphere.position.set(cBigSphere.position.x, cBigSphere.position.y, cBigSphere.position.z);
+                var q = cBigSphere.quaternion;
+                bigSphere.quaternion.set(q.x, q.y, q.z, q.w);
+                light.position = sphere.position.clone();
+                var timeLeft = Math.floor(91 - (time() - t0));
+                setHighScore(Math.max(Math.floor(score), getHighScore()));
+                text = "Time remaining: " + timeLeft + "\n\n";
+                text += "Score: " + Math.floor(score) + "\n\n";
+                text += "High Score: " + Math.floor(getHighScore()) + "\n\n";
+                textBox.write(text, {
+                    fontFamily: "sans",
+                    fontSize: "32",
+                    fontWeight: "bold",
+                    textAlign: "left",
+                    color: "#0f8"
+                });
+                if (timeLeft < 1) {
+                    setMode("score");
+                }
+
+            }
+            camera.quaternion.set(webrift.x, webrift.y, webrift.z, webrift.w);
+            OReffect.render(scene, camera);
+
+        }
+
+    </script>
+
+
+</html>
